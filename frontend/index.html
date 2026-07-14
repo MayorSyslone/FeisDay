@@ -2,28 +2,95 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Feis Schedule Builder — web preview</title>
+<title>Feis Schedule Builder</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Feis Schedule Builder — web preview</h1>
-  <p class="muted">
-    This is a bare-bones first pass: upload a dancer registration CSV, generate a
-    schedule using the default 4-stage layout, and see the raw result. The proper
-    editable, feis-friendly grid (with parallel-group locking) comes next.
-  </p>
+  <h1>Feis Schedule Builder</h1>
 
-  <form id="upload-form">
-    <label>
-      Dancer registration CSV
-      <input type="file" id="csv-file" accept=".csv" required>
-    </label>
-    <button type="submit">Generate schedule</button>
-  </form>
+  <section class="panel">
+    <h2>Stages</h2>
+    <p class="muted">
+      Drag a stage onto another to run them in parallel. Drag a stage out of a
+      group to split it off again.
+    </p>
+    <button type="button" id="add-stage-btn" class="btn btn-accent">+ Add stage</button>
+    <div id="stage-board"></div>
+  </section>
 
-  <p id="status" class="muted"></p>
-  <div id="table-container"></div>
+  <section class="panel">
+    <h2>Advanced settings</h2>
+    <div class="advanced-grid">
+      <label>Age hard stop (years)
+        <input type="number" id="age-hard-stop" value="3" min="0">
+      </label>
+      <label>Lunch window start
+        <select id="lunch-start"></select>
+      </label>
+      <label>Lunch window end
+        <select id="lunch-end"></select>
+      </label>
+      <label>Lunch length (minutes)
+        <input type="number" id="lunch-length" value="60" min="0">
+      </label>
+      <label>Max early-fill (minutes)
+        <input type="number" id="max-early-fill" value="90" min="0">
+      </label>
+    </div>
+  </section>
 
+  <section class="panel">
+    <h2>Build schedule</h2>
+
+    <div class="step-row">
+      <p>Browse and select your dancer registration data CSV file.</p>
+      <div class="step-action">
+        <input type="file" id="csv-file" accept=".csv">
+        <span id="csv-check" class="check"></span>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <p>Build the master stage schedule from your data and settings.</p>
+      <div class="step-action">
+        <button type="button" id="generate-btn" class="btn btn-accent">Generate schedule</button>
+        <span id="schedule-check" class="check"></span>
+      </div>
+    </div>
+
+    <div id="grid-container" class="grid-container">
+      <p id="grid-hint" class="muted">
+        Generate a schedule to see it here — drag to select, move, and fine-tune the order.
+      </p>
+    </div>
+
+    <div class="step-action">
+      <button type="button" id="save-csv-btn" class="btn btn-accent" disabled>Save schedule CSV…</button>
+    </div>
+
+    <p id="status" class="muted"></p>
+  </section>
+
+  <section class="panel" id="printouts-panel" style="display:none;">
+    <h2>Stage number printouts</h2>
+    <p class="muted">Click a stage to preview its printout pages. This preview is generated live in your browser and always reflects your current edits.</p>
+
+    <div id="printout-stage-tabs" class="printout-tabs"></div>
+
+    <div id="printout-preview" class="printout-preview"></div>
+
+    <div class="step-action" style="margin-top:0.75rem;">
+      <button type="button" id="download-printouts-btn" class="btn btn-accent">Download all stage printouts (.docx)</button>
+      <span id="printouts-status" class="muted"></span>
+    </div>
+  </section>
+
+  <script src="stage-board.js"></script>
+  <script src="stage-board-ui.js"></script>
+  <script src="schedule-model.js"></script>
+  <script src="schedule-grid-ui.js"></script>
+  <script src="printout-logic.js"></script>
+  <script src="loading-overlay.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

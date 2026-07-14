@@ -21,15 +21,18 @@ Run locally:
 Then open http://127.0.0.1:8000 in a browser.
 """
 
+import io
 import json
 import shutil
 import subprocess
 import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -84,6 +87,50 @@ async def generate_schedule(csv_file: UploadFile = File(...), settings: str = Fo
             schedule_data = json.load(f)
 
     return schedule_data
+
+
+@app.post("/api/generate-printouts")
+async def generate_printouts(csv_file: UploadFile = File(...)):
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        csv_path = tmp_path / "schedule.csv"
+        output_dir = tmp_path / "stage_printouts"
+
+        with open(csv_path, "wb") as f:
+            shutil.copyfileobj(csv_file.file, f)
+
+        sys.path.insert(0, str(BASE_DIR))
+        from stage_number_printer import generate_stage_docs
+
+        try:
+            generate_stage_docs(str(csv_path), str(output_dir))
+        except Exception as exc:
+            raise HTTPException(500, f"Printout generation failed: {exc}")
+
+        docx_files = sorted(output_dir.glob("*.docx"))
+        if not docx_files:
+            raise HTTPException(500, "No printout files were generated.")
+
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for docx_path in docx_files:
+                zf.write(docx_path, arcname=docx_path.name)
+        zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=stage_printouts.zip"},
+    )
+
+
+@app.get("/api/loading-artworks")
+async def list_loading_artworks():
+    artwork_dir = FRONTEND_DIR / "loading-artwork"
+    if not artwork_dir.exists():
+        return {"files": []}
+    files = sorted(p.name for p in artwork_dir.glob("*.png"))
+    return {"files": files}
 
 
 @app.get("/api/health")

@@ -58,7 +58,7 @@ You'll know it worked if your terminal prompt now starts with `(venv)`.
 pip install -r requirements.txt
 ```
 
-**5. Start the server:**
+**5. Start the server:-----------------------------------------------------------------**
 
 ```
 uvicorn main:app --reload
@@ -73,7 +73,7 @@ Leave the terminal window open while you're using it; `Ctrl+C` stops the
 server. Next time, you only need steps 3 and 5 (no need to recreate the
 virtual environment or reinstall packages).
 
-## Putting it online for free (Render)
+## Putting it online for free (Render)--------------------------------------------------------------
 
 [Render](https://render.com) has a genuine free tier for small web services —
 no credit card needed for the basic plan. The trade-off: if nobody uses it for
