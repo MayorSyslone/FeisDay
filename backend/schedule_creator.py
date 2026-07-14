@@ -1,5 +1,3 @@
-import tkinter as tk
-from tkinter import filedialog
 import pandas as pd
 import numpy as np
 import re
@@ -91,6 +89,12 @@ def select_and_convert_csv(forced_path=None):
     if forced_path:
         df = pd.read_csv(forced_path)
         return df.to_numpy()
+
+    # Only needed for the desktop app's no-argument fallback. Imported here
+    # (rather than at module load) so this file can run on servers without
+    # Tk/Tcl installed (e.g. Render) as long as a forced_path is always given.
+    import tkinter as tk
+    from tkinter import filedialog
 
     # Initialize hidden tkinter root
     root = tk.Tk()
