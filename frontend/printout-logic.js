@@ -34,26 +34,44 @@
     return ordered;
   }
 
-  /** Returns {text, isMixed} — isMixed pages use a smaller font, like the
-   * desktop docx version (170pt single comp vs 105pt mixed). */
+  /** Returns {text, isMixed, isHold} — isMixed pages use a smaller font,
+   * like the desktop docx version (170pt single comp vs 105pt mixed). */
   function competitionLabelForPage(entry) {
     const upper = entry.toUpperCase();
     if (upper === "HOLD" || upper === "LUNCH") {
-      return { text: upper, isMixed: false };
+      return { text: upper, isMixed: false, isHold: upper === "HOLD" };
     }
     const noCount = entry.replace(/\s*\(\d+\)\s*$/, "").trim();
     const parts = noCount.split("/").map((p) => p.trim()).filter((p) => p.length);
     if (parts.length <= 1) {
-      return { text: noCount, isMixed: false };
+      return { text: noCount, isMixed: false, isHold: false };
     }
-    return { text: parts.join("\n"), isMixed: true };
+    return { text: parts.join("\n"), isMixed: true, isHold: false };
   }
 
-  /** Full pipeline: schedule cells for one stage -> print-ready pages. */
+  /** Full pipeline: schedule cells for one stage -> print-ready pages, each
+   * with a pageNumber (null for HOLD — it's never numbered or counted).
+   * The default print order is reversed (last-scheduled comp shown first),
+   * so page numbers count DOWN in display order: the first page you see is
+   * the highest number, reaching "Page 1" at the true start of the day. */
   function buildPrintPages(cells) {
     const entries = parseStageEntries(cells);
     const order = buildPrintOrder(entries);
-    return order.map((entry) => competitionLabelForPage(entry));
+    const pages = order.map((entry) => competitionLabelForPage(entry));
+
+    const totalPages = pages.filter((p) => !p.isHold).length;
+    let counter = totalPages;
+    pages.forEach((page) => {
+      if (page.isHold) {
+        page.pageNumber = null;
+      } else {
+        page.pageNumber = counter;
+        counter -= 1;
+      }
+    });
+    pages.forEach((page) => { page.totalPages = totalPages; });
+
+    return pages;
   }
 
   return { parseStageEntries, buildPrintOrder, competitionLabelForPage, buildPrintPages };

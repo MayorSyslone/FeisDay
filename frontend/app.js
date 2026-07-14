@@ -244,7 +244,7 @@ function renderAllPrintoutPages() {
 
     const numberEl = document.createElement("div");
     numberEl.className = "printout-page-number";
-    numberEl.textContent = `Page ${i + 1} of ${printoutPages.length}`;
+    numberEl.textContent = page.pageNumber !== null ? `Page ${page.pageNumber} of ${page.totalPages}` : "";
     pageEl.appendChild(numberEl);
 
     printoutPreviewEl.appendChild(pageEl);
