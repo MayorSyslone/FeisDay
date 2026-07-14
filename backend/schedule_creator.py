@@ -70,13 +70,13 @@ group_names = _config_overrides.get("group_names", [f"Group {i + 1}" for i in ra
 
 dance_type_order = ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single Jig", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"]
 
-dance_level_order = ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Need", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"]
+dance_level_order = ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Need", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"]
 
 dance_type_map = {"Treble Reel" : 1, "Treble Jig" : 2, "Slip Jig" : 3, "Hornpipe" : 4, "Single Jig" : 5,
                   "Single (Hop) Jig" : 5, "Reel" : 6, "Light Jig" : 7, "2 Rounds": 8, "3 Rounds" : 9,
                   "Traditional Set" : 10, "4 Hand" : 11, "8 Hand" : 13, "Dancers Choice" : 14}
 dance_level_map = {"Advanced Beginner thru Prizewinner Charity" : 300, "Prelim & Champ Charity" : 300,
-                   "Special Need" : 100, "PreBeginner" : 1, "Beginner" : 2, "Adult Beginner" : 92,
+                   "Special Need" : 100, "Special Needs" : 100, "PreBeginner" : 1, "Beginner" : 2, "Adult Beginner" : 92,
                    "Advanced Beginner" : 3, "Adult Adv Beginner" : 93, "Novice" : 4, "Adult Novice" : 94,
                    "Prizewinner" : 5, "Adult Prizewinner" : 95, "Preliminary" : 6, "Champion" : 7,
                    "Adult Championship" : 99, "All Levels" : 8, "Team" : 10}
@@ -143,6 +143,7 @@ dancer_counts = dancer_data[:,2]
 dance_genders = dancer_data[:,3]
 dance_levels = dancer_data[:,4]
 dance_types = dancer_data[:,5]
+dance_ages_raw = dancer_data[:,6]
 
 def collect_non_empty_values(values):
     return [
@@ -172,30 +173,35 @@ dance_type_num = type_to_num(dance_types)
 dance_level_num = level_to_num(dance_levels)
 
 '''
-For each dance level (other than adult, all levels, special needs, and teams), look at the second 2 numbers of the dancer codes
-to create an array for dancer age group (accounting for the fact that dance codes have letters). Adults are assigned 21, 
-"all levels" use the first numbers before the letter T of the dancer code, special needs are assigned 0, and teams: if a U is
-present use the proceeding numbers as the age group, if an O is presnt use 20, and in an A is present use 21.
+For each dance entry, determine a numeric "age group" used only for merging low-count competitions
+with a nearby age group of the same dance type, and for age-based sort ordering. Adult levels are
+always treated as 21 and Special Need(s) as 0, regardless of the Age column text, since the level
+name alone already establishes those unambiguously. For everything else, the age group is read
+directly from the CSV's own "Age" column (e.g. "Under 12", "Under 12 All", "12 & Over", "Adult",
+"Adult 40 & Over") by pulling the first number out of that text. Entries with no parseable number
+(blank, "All Ages", etc.) are left as NaN, which the merge/sort logic below already treats as
+"no age info" (skipped for merging, sorted last).
 '''
-age_group = np.empty(len(dance_codes))
+ADULT_LEVEL_NAMES = {"Adult Beginner", "Adult Adv Beginner", "Adult Novice", "Adult Prizewinner", "Adult Championship"}
+SPECIAL_NEED_LEVEL_NAMES = {"Special Need", "Special Needs"}
 
-for i, code in enumerate(dance_codes):
-    if dance_levels[i] not in ["Adult Beginner", "Adult Adv Beginner", "Adult Novice", "Adult Prizewinner", "Adult Championship", "All Levels", "Special Need", "Team", "Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity"]:
-        age_group[i] = int(code[1:3])
-    elif dance_levels[i] == "All Levels":
-        match = re.findall(r'(\d+)t', code, re.IGNORECASE)
-        age_group[i] = int(match[0])
-    elif dance_levels[i] in ["Adult Beginner", "Adult Adv Beginner", "Adult Novice", "Adult Prizewinner", "Adult Championship"]:
-        age_group[i] = 21
-    elif dance_levels[i] == "Special Need":
-        age_group[i] = 0
-    elif dance_levels[i] == "Team":
-        if "U" in code:
-            age_group[i] = int(code[code.index("U")+1:code.index("U")+3])
-        elif "O" in code:
-            age_group[i] = 20
-        elif "A" in code:
-            age_group[i] = 21
+def parse_age_group(age_text, level_name):
+    if level_name in ADULT_LEVEL_NAMES:
+        return 21
+    if level_name in SPECIAL_NEED_LEVEL_NAMES:
+        return 0
+    if not isinstance(age_text, str) or not age_text.strip():
+        return float("nan")
+    match = re.search(r"\d+", age_text)
+    if match:
+        return int(match.group())
+    if "adult" in age_text.lower():
+        return 21
+    return float("nan")
+
+age_group = np.empty(len(dance_codes))
+for i in range(len(dance_codes)):
+    age_group[i] = parse_age_group(dance_ages_raw[i], dance_levels[i])
 
 # Find all competitions where the level is between beginner and prelim and the dancer count is below 5 (not using .get since its a numpy array)
 low_comp_count = np.where((dance_level_num >= 1) & (dance_level_num <= 6) & (dancer_counts < 5))[0]
