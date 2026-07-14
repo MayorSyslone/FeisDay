@@ -1,5 +1,6 @@
-import tkinter as tk
-from tkinter import filedialog
+# import tkinter as tk
+# from tkinter import filedialog
+import io
 import pandas as pd
 import numpy as np
 import re
@@ -87,30 +88,43 @@ dance_time_sec = {"Treble Reel" : 90, "Treble Jig" : 90, "Slip Jig" : 90, "Hornp
 
 stage_schedule = np.zeros(len(stage_perms))
 
-def select_and_convert_csv(forced_path=None):
+# def select_and_convert_csv(forced_path=None):
+#     if forced_path:
+#         df = pd.read_csv(forced_path)
+#         return df.to_numpy()
+
+#     # Initialize hidden tkinter root
+#     root = tk.Tk()
+#     root.withdraw()
+
+#     # Open file dialog
+#     file_path = filedialog.askopenfilename(
+#         title="Select a CSV file",
+#         filetypes=[("CSV files", "*.csv")]
+#     )
+
+#     if file_path:
+#         # Read CSV into a Pandas DataFrame
+#         df = pd.read_csv(file_path)
+        
+#         # Convert to a Pandas/NumPy array
+#         data_array = df.to_numpy()
+        
+#         return data_array
+    
+#     return None
+
+def select_and_convert_csv(file_bytes=None, forced_path=None):
+    """Accepts raw file bytes from an API upload or a direct system path."""
     if forced_path:
         df = pd.read_csv(forced_path)
         return df.to_numpy()
 
-    # Initialize hidden tkinter root
-    root = tk.Tk()
-    root.withdraw()
+    if file_bytes:
+        # Converts uploaded raw bytes into a file-like object for pandas
+        df = pd.read_csv(io.BytesIO(file_bytes))
+        return df.to_numpy()
 
-    # Open file dialog
-    file_path = filedialog.askopenfilename(
-        title="Select a CSV file",
-        filetypes=[("CSV files", "*.csv")]
-    )
-
-    if file_path:
-        # Read CSV into a Pandas DataFrame
-        df = pd.read_csv(file_path)
-        
-        # Convert to a Pandas/NumPy array
-        data_array = df.to_numpy()
-        
-        return data_array
-    
     return None
 
 dancer_data = select_and_convert_csv(_csv_path_arg)
