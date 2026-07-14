@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feis Schedule Builder — web preview</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Feis Schedule Builder — web preview</h1>
+  <p class="muted">
+    This is a bare-bones first pass: upload a dancer registration CSV, generate a
+    schedule using the default 4-stage layout, and see the raw result. The proper
+    editable, feis-friendly grid (with parallel-group locking) comes next.
+  </p>
+
+  <form id="upload-form">
+    <label>
+      Dancer registration CSV
+      <input type="file" id="csv-file" accept=".csv" required>
+    </label>
+    <button type="submit">Generate schedule</button>
+  </form>
+
+  <p id="status" class="muted"></p>
+  <div id="table-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
