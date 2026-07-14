@@ -31,6 +31,14 @@ body {
 h1 { margin-bottom: 0.25rem; }
 h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 
+.app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.app-header h1 { margin: 0; }
+
 .muted { color: var(--text-muted); font-size: 0.9rem; }
 
 .panel {
@@ -198,6 +206,15 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 }
 .sb-modal-buttons { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.75rem; }
 
+.info-list { padding-left: 1.2rem; font-size: 0.9rem; line-height: 1.5; }
+.info-list li { margin-bottom: 0.6rem; }
+.info-list code {
+  background: var(--green-group-bg);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+}
+
 /* -------------------------------------------------------- schedule grid */
 
 .grid-container {
@@ -304,17 +321,37 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 }
 
 .printout-preview {
-  background: white;
+  background: var(--green-bg);
   border: 1px solid var(--green-border);
   border-radius: 8px;
-  aspect-ratio: 11 / 8.5;
   max-width: 640px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 1rem;
+  gap: 1rem;
   margin: 0.5rem 0;
+}
+.printout-page {
+  background: white;
+  border: 1px solid var(--green-border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  aspect-ratio: 11 / 8.5;
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.printout-page-number {
+  position: absolute;
+  bottom: 0.4rem;
+  right: 0.6rem;
+  font-size: 0.7rem;
+  color: var(--text-muted);
 }
 .printout-page-text {
   font-weight: bold;
@@ -322,14 +359,8 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   white-space: pre-line;
   line-height: 1.1;
 }
-.printout-page-text.single { font-size: 4.5rem; }
-.printout-page-text.mixed { font-size: 2.6rem; }
-.printout-page-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
+.printout-page-text.single { font-size: 3.4rem; }
+.printout-page-text.mixed { font-size: 2rem; }
 
 /* ------------------------------------------------------------- loading */
 

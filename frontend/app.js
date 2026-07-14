@@ -1,6 +1,49 @@
 const board = new StageBoard();
 let gridController = null;
 
+document.getElementById("info-btn").addEventListener("click", showInfoModal);
+
+function showInfoModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "sb-modal-overlay";
+  const modal = document.createElement("div");
+  modal.className = "sb-modal";
+  modal.style.maxWidth = "620px";
+  modal.innerHTML = `
+    <h3>How this works</h3>
+    <ol class="info-list">
+      <li><strong>Stages</strong> — set up your stages here. Drag one stage onto another to run
+        them in parallel (they'll share time slots and can't run different dances at once).
+        Drag a stage back out to split it off. Rename stages/groups and pick each stage's
+        allowed levels and start time.</li>
+      <li><strong>Advanced settings</strong> — age cutoff, lunch window, and how early a
+        competition can be pulled forward to fill a hold.</li>
+      <li><strong>Build schedule</strong> — pick your dancer registration CSV, then Generate.
+        The schedule appears below as an editable grid.</li>
+      <li><strong>Editing the grid</strong> — click and drag to select cells (a selection can't
+        cross into a different stage or parallel group). Hover the selection's edge to grab it,
+        then drag: drop onto a matching HOLD block to swap in, or onto a row boundary to reorder
+        (a full-width selection moves as a block; a narrower one inserts a brand-new row instead,
+        so you can offset it left/right into whichever stages you drop it on).
+        <code>Ctrl+Z</code> (<code>Cmd+Z</code> on Mac) undoes the last move. Times and any
+        dance-type conflicts (highlighted red) update automatically after every move.</li>
+      <li><strong>Save schedule CSV</strong> — downloads the current (edited) schedule.</li>
+      <li><strong>Stage number printouts</strong> — preview each stage's big-print pages, then
+        download the real .docx files for posting at each stage.</li>
+    </ol>
+  `;
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "btn btn-accent";
+  closeBtn.textContent = "Close";
+  closeBtn.style.marginTop = "0.75rem";
+  closeBtn.onclick = () => overlay.remove();
+  modal.appendChild(closeBtn);
+  overlay.appendChild(modal);
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
 const stageBoardContainer = document.getElementById("stage-board");
 const boardUi = mountStageBoard(stageBoardContainer, board);
 
@@ -173,7 +216,40 @@ const downloadPrintoutsBtn = document.getElementById("download-printouts-btn");
 const printoutsStatusEl = document.getElementById("printouts-status");
 
 let printoutPages = [];
-let printoutPageIndex = 0;
+
+function showStagePrintout(stageIndex) {
+  // Always re-read from the live model so the preview reflects any edits
+  // made since the schedule was generated.
+  const columns = gridController.getModel().toColumns();
+  const name = gridController.getModel().stageMeta[stageIndex].name;
+  const cells = columns[name] || [];
+  printoutPages = PrintoutLogic.buildPrintPages(cells);
+  renderAllPrintoutPages();
+}
+
+function renderAllPrintoutPages() {
+  printoutPreviewEl.innerHTML = "";
+  if (!printoutPages.length) {
+    printoutPreviewEl.textContent = "Nothing to print for this stage yet.";
+    return;
+  }
+  printoutPages.forEach((page, i) => {
+    const pageEl = document.createElement("div");
+    pageEl.className = "printout-page";
+
+    const textEl = document.createElement("div");
+    textEl.className = "printout-page-text " + (page.isMixed ? "mixed" : "single");
+    textEl.textContent = page.text;
+    pageEl.appendChild(textEl);
+
+    const numberEl = document.createElement("div");
+    numberEl.className = "printout-page-number";
+    numberEl.textContent = `Page ${i + 1} of ${printoutPages.length}`;
+    pageEl.appendChild(numberEl);
+
+    printoutPreviewEl.appendChild(pageEl);
+  });
+}
 
 function mountPrintoutPreview() {
   printoutsPanel.style.display = "";
@@ -198,54 +274,6 @@ function mountPrintoutPreview() {
   if (stageIndices.length) showStagePrintout(stageIndices[0]);
 }
 
-function showStagePrintout(stageIndex) {
-  // Always re-read from the live model so the preview reflects any edits
-  // made since the schedule was generated.
-  const columns = gridController.getModel().toColumns();
-  const name = gridController.getModel().stageMeta[stageIndex].name;
-  const cells = columns[name] || [];
-  printoutPages = PrintoutLogic.buildPrintPages(cells);
-  printoutPageIndex = 0;
-  renderPrintoutPage();
-}
-
-function renderPrintoutPage() {
-  printoutPreviewEl.innerHTML = "";
-  if (!printoutPages.length) {
-    printoutPreviewEl.textContent = "Nothing to print for this stage yet.";
-    return;
-  }
-  const page = printoutPages[printoutPageIndex];
-  const textEl = document.createElement("div");
-  textEl.className = "printout-page-text " + (page.isMixed ? "mixed" : "single");
-  textEl.textContent = page.text;
-  printoutPreviewEl.appendChild(textEl);
-
-  const nav = document.createElement("div");
-  nav.className = "printout-page-nav";
-  const prevBtn = document.createElement("button");
-  prevBtn.type = "button";
-  prevBtn.className = "btn";
-  prevBtn.textContent = "\u2190 Prev";
-  prevBtn.disabled = printoutPageIndex === 0;
-  prevBtn.onclick = () => { printoutPageIndex--; renderPrintoutPage(); };
-
-  const counter = document.createElement("span");
-  counter.className = "muted";
-  counter.textContent = `Page ${printoutPageIndex + 1} of ${printoutPages.length}`;
-
-  const nextBtn = document.createElement("button");
-  nextBtn.type = "button";
-  nextBtn.className = "btn";
-  nextBtn.textContent = "Next \u2192";
-  nextBtn.disabled = printoutPageIndex === printoutPages.length - 1;
-  nextBtn.onclick = () => { printoutPageIndex++; renderPrintoutPage(); };
-
-  nav.appendChild(prevBtn);
-  nav.appendChild(counter);
-  nav.appendChild(nextBtn);
-  printoutPreviewEl.appendChild(nav);
-}
 
 downloadPrintoutsBtn.addEventListener("click", async () => {
   if (!gridController) return;

@@ -44,6 +44,12 @@ function showLoadingOverlay(message) {
   let progress = 0;
   const cap = 0.92;
   let done = false;
+  let imgReady = false;
+
+  // Give the canvas a sensible size immediately so the box isn't 0x0 while
+  // the image is still loading (its natural size isn't known yet).
+  canvas.width = 360;
+  canvas.height = 280;
 
   pickRandomArtworkPath().then((path) => {
     img.src = path;
@@ -54,13 +60,14 @@ function showLoadingOverlay(message) {
     const ratio = displayWidth / img.naturalWidth;
     canvas.width = displayWidth;
     canvas.height = Math.round(img.naturalHeight * ratio);
-    tick();
+    imgReady = true;
   };
 
   function render(fraction) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (!imgReady) return; // nothing to reveal yet — plain white box until the image is ready
     const revealedWidth = Math.max(1, Math.floor(canvas.width * fraction));
     ctx.save();
     ctx.beginPath();
@@ -82,6 +89,10 @@ function showLoadingOverlay(message) {
     render(progress);
     requestAnimationFrame(tick);
   }
+
+  // Start immediately — don't wait on the image, which may still be loading
+  // (especially the very first time, before the browser has it cached).
+  tick();
 
   return {
     finish() {
