@@ -1,6 +1,8 @@
 const board = new StageBoard();
 let gridController = null;
 
+const preloadedArtworkImages = []; // kept alive on purpose -- see preloadLoadingArtwork
+
 preloadLoadingArtwork();
 
 function preloadLoadingArtwork() {
@@ -10,6 +12,11 @@ function preloadLoadingArtwork() {
       (data.files || []).forEach((filename) => {
         const img = new Image();
         img.src = `loading-artwork/${filename}`;
+        // Without keeping a reference, this Image has nothing pointing to
+        // it once this callback returns and can get garbage-collected
+        // before its fetch/decode finishes -- silently aborting the
+        // "preload" and defeating the whole point.
+        preloadedArtworkImages.push(img);
       });
     })
     .catch(() => {}); // non-critical; the loading overlay falls back gracefully either way
@@ -155,7 +162,7 @@ generateBtn.addEventListener("click", async () => {
   formData.append("settings", JSON.stringify(config));
 
   generateBtn.disabled = true;
-  const overlay = showLoadingOverlay("Building schedule");
+  const overlay = showLoadingOverlay("Building schedule", 12);
 
   try {
     const response = await fetch("/api/generate-schedule", { method: "POST", body: formData });
@@ -366,7 +373,7 @@ exportBtn.addEventListener("click", async () => {
 
   exportBtn.disabled = true;
   exportStatusEl.textContent = "Building export…";
-  const overlay = showLoadingOverlay("Building export");
+  const overlay = showLoadingOverlay("Building export", 6);
 
   try {
     const response = await fetch("/api/export", { method: "POST", body: formData });

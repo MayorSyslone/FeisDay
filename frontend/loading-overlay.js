@@ -21,7 +21,7 @@ async function pickRandomArtworkPath() {
   return DEFAULT_ARTWORK_PATH;
 }
 
-function showLoadingOverlay(message) {
+function showLoadingOverlay(message, estimatedSeconds = 10) {
   const overlay = document.createElement("div");
   overlay.className = "loading-overlay";
 
@@ -41,10 +41,10 @@ function showLoadingOverlay(message) {
   document.body.appendChild(overlay);
 
   const img = new Image();
-  let progress = 0;
-  const cap = 0.92;
+  const cap = 0.94;
   let done = false;
   let imgReady = false;
+  const startTime = performance.now();
 
   // Give the canvas a sensible size immediately so the box isn't 0x0 while
   // the image is still loading (its natural size isn't known yet).
@@ -84,9 +84,17 @@ function showLoadingOverlay(message) {
       setTimeout(() => overlay.remove(), 250);
       return;
     }
-    progress += (cap - progress) * 0.06 + 0.002;
-    progress = Math.min(progress, cap);
-    render(progress);
+    // Ramp based on elapsed time vs. a rough estimate of how long this kind
+    // of operation actually takes, eased so it doesn't feel like it slams
+    // to a stop right at the cap. If the real operation runs long, this
+    // just holds steady at the cap until finish() actually fires — but for
+    // anything close to the estimate, the fill now tracks real elapsed
+    // time instead of always rushing to ~92% in the first couple seconds
+    // regardless of how long the task actually takes.
+    const elapsedSeconds = (performance.now() - startTime) / 1000;
+    const linear = Math.min(elapsedSeconds / estimatedSeconds, 1);
+    const eased = 1 - Math.pow(1 - linear, 2);
+    render(Math.min(eased * cap, cap));
     requestAnimationFrame(tick);
   }
 
