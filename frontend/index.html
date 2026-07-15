@@ -40,6 +40,25 @@
         <input type="number" id="max-early-fill" value="90" min="0">
       </label>
     </div>
+
+    <h3 style="margin-top:1rem;">Scheduling order</h3>
+    <p class="muted">Drag to reorder — items nearer the top get scheduled earlier in the day.</p>
+    <div class="order-columns">
+      <div class="order-column">
+        <h4>Dance order</h4>
+        <div id="dance-order-list" class="dl-container"></div>
+      </div>
+      <div class="order-column">
+        <h4>Level order</h4>
+        <div id="level-order-list" class="dl-container"></div>
+      </div>
+    </div>
+
+    <h4 style="margin-top:1rem;">Age order</h4>
+    <div class="age-direction-row">
+      <label><input type="checkbox" id="age-youngest-first" checked> Youngest first</label>
+      <label><input type="checkbox" id="age-oldest-first"> Oldest first</label>
+    </div>
   </section>
 
   <section class="panel">
@@ -90,6 +109,7 @@
 
   <script src="stage-board.js"></script>
   <script src="stage-board-ui.js"></script>
+  <script src="draggable-list-ui.js"></script>
   <script src="schedule-model.js"></script>
   <script src="schedule-grid-ui.js"></script>
   <script src="printout-logic.js"></script>

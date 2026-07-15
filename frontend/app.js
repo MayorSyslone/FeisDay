@@ -60,6 +60,29 @@ const maxEarlyFillInput = document.getElementById("max-early-fill");
 populateTimeSelect(lunchStartInput, "11:30 AM");
 populateTimeSelect(lunchEndInput, "01:00 PM");
 
+// These must match schedule_creator.py's hardcoded defaults exactly, since
+// that's what the backend falls back to if these keys aren't sent at all —
+// keeping them in sync means "never touched the order" behaves identically
+// whether or not the config explicitly includes them.
+const DEFAULT_DANCE_ORDER = ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single Jig", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"];
+const DEFAULT_LEVEL_ORDER = ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Need", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"];
+
+const danceOrderItems = DEFAULT_DANCE_ORDER.slice();
+const levelOrderItems = DEFAULT_LEVEL_ORDER.slice();
+mountDraggableList(document.getElementById("dance-order-list"), danceOrderItems, () => {});
+mountDraggableList(document.getElementById("level-order-list"), levelOrderItems, () => {});
+
+const ageYoungestFirstCheckbox = document.getElementById("age-youngest-first");
+const ageOldestFirstCheckbox = document.getElementById("age-oldest-first");
+ageYoungestFirstCheckbox.addEventListener("change", () => {
+  if (ageYoungestFirstCheckbox.checked) ageOldestFirstCheckbox.checked = false;
+  else ageYoungestFirstCheckbox.checked = true; // at least one must stay checked
+});
+ageOldestFirstCheckbox.addEventListener("change", () => {
+  if (ageOldestFirstCheckbox.checked) ageYoungestFirstCheckbox.checked = false;
+  else ageOldestFirstCheckbox.checked = true;
+});
+
 function populateTimeSelect(selectEl, defaultValue) {
   TIME_OPTIONS.forEach((t) => {
     const opt = document.createElement("option");
@@ -76,6 +99,9 @@ function buildAdvancedConfig() {
     lunch_time_range: [lunchStartInput.value, lunchEndInput.value],
     lunch_length: parseInt(lunchLengthInput.value, 10) || 60,
     max_early_fill_minutes: parseInt(maxEarlyFillInput.value, 10) || 90,
+    dance_type_order: danceOrderItems.slice(),
+    dance_level_order: levelOrderItems.slice(),
+    age_sort_direction: ageOldestFirstCheckbox.checked ? "oldest_first" : "youngest_first",
   };
 }
 

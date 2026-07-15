@@ -66,9 +66,18 @@ parallel_stages = _config_overrides.get("parallel_stages", [[1,2,3]])
 stage_names = _config_overrides.get("stage_names", [f"Stage {i + 1}" for i in range(len(stage_perms))])
 group_names = _config_overrides.get("group_names", [f"Group {i + 1}" for i in range(len(parallel_stages))])
 
-dance_type_order = ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single Jig", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"]
+dance_type_order = _config_overrides.get(
+    "dance_type_order",
+    ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single Jig", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"],
+)
 
-dance_level_order = ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Need", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"]
+dance_level_order = _config_overrides.get(
+    "dance_level_order",
+    ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Need", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"],
+)
+
+# "youngest_first" (default, ascending) or "oldest_first" (descending).
+age_sort_direction = _config_overrides.get("age_sort_direction", "youngest_first")
 
 dance_type_map = {"Treble Reel" : 1, "Treble Jig" : 2, "Slip Jig" : 3, "Hornpipe" : 4, "Single Jig" : 5,
                   "Single (Hop) Jig" : 5, "Reel" : 6, "Light Jig" : 7, "2 Rounds": 8, "3 Rounds" : 9,
@@ -298,7 +307,11 @@ type_sort_order = {dance_type_name: index for index, dance_type_name in enumerat
 
 def age_group_sort_key(age_value):
     values = normalize_age_values(age_value)
-    return tuple(sorted(values)) if values else (float('inf'),)
+    if not values:
+        return (float('inf'),)
+    if age_sort_direction == "oldest_first":
+        return tuple(sorted(-v for v in values))
+    return tuple(sorted(values))
 
 def dancer_count_sort_key(count_value):
     try:

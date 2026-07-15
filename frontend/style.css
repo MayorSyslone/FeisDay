@@ -298,6 +298,56 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .sg-armed .sg-cell { cursor: move; }
 .sg-dragging { cursor: grabbing; }
 
+/* ------------------------------------------------------- draggable lists */
+
+.dl-container {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 320px;
+  margin-top: 0.4rem;
+}
+.dl-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--green-card);
+  border: 1px solid var(--green-border);
+  border-radius: 4px;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  cursor: grab;
+}
+.dl-handle { color: var(--text-muted); font-size: 0.9rem; }
+.dl-drop-target { background: var(--green-accent-light); border-color: var(--green-accent); }
+.dl-ghost {
+  position: fixed;
+  z-index: 1000;
+  background: var(--green-accent-light);
+  border: 1px solid var(--green-border);
+  border-radius: 4px;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.85rem;
+  pointer-events: none;
+}
+
+.order-columns {
+  display: flex;
+  gap: 2.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+.order-column h4 { margin: 0 0 0.3rem; font-size: 0.9rem; }
+
+.age-direction-row {
+  display: flex;
+  gap: 1.2rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  align-items: center;
+}
+.age-direction-row label { display: flex; align-items: center; gap: 0.4rem; }
+
 /* ---------------------------------------------------------- printouts */
 
 .printout-tabs {
