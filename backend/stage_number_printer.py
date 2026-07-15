@@ -122,17 +122,22 @@ def build_print_pages(stage_entries, stage_name="", options=None):
 
 def add_comp_page(document, page):
     section = document.sections[0]
+    available_height = section.page_height - section.top_margin - section.bottom_margin - PAGE_FOOTER_ALLOWANCE
 
-    table = document.add_table(rows=1, cols=1)
+    show_number = page.get("page_number") is not None
+    footer_row_height = Pt(30)
+    main_row_height = available_height - footer_row_height if show_number else available_height
+
+    table = document.add_table(rows=2 if show_number else 1, cols=1)
     table.autofit = False
-    row = table.rows[0]
-    row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
-    # Leave a little room for the paragraph python-docx appends after each table.
-    row.height = section.page_height - section.top_margin - section.bottom_margin - PAGE_FOOTER_ALLOWANCE
 
-    cell = table.cell(0, 0)
-    cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
-    paragraph = cell.paragraphs[0]
+    main_row = table.rows[0]
+    main_row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
+    main_row.height = main_row_height
+
+    main_cell = table.cell(0, 0)
+    main_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+    paragraph = main_cell.paragraphs[0]
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     run = paragraph.add_run(page["text"])
@@ -140,12 +145,22 @@ def add_comp_page(document, page):
     run.font.name = "Arial"
     run.font.size = Pt(105 if page["is_mixed"] else 170)
 
-    if page.get("page_number") is not None:
-        number_paragraph = cell.add_paragraph()
-        number_paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        number_run = number_paragraph.add_run(f"Page {page['page_number']} of {page['total_pages']}")
-        number_run.font.name = "Arial"
-        number_run.font.size = Pt(12)
+    if show_number:
+        # A separate, dedicated row pinned to the bottom of the page --
+        # NOT a second paragraph in the main cell, which would just get
+        # vertically centered alongside the giant text instead of sitting
+        # at the true bottom-right corner of the page itself.
+        footer_row = table.rows[1]
+        footer_row.height_rule = WD_ROW_HEIGHT_RULE.EXACTLY
+        footer_row.height = footer_row_height
+
+        footer_cell = table.cell(1, 0)
+        footer_cell.vertical_alignment = WD_ALIGN_VERTICAL.BOTTOM
+        footer_paragraph = footer_cell.paragraphs[0]
+        footer_paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        footer_run = footer_paragraph.add_run(f"Page {page['page_number']} of {page['total_pages']}")
+        footer_run.font.name = "Arial"
+        footer_run.font.size = Pt(12)
 
 
 def _find_stage_comp_columns(df):

@@ -29,10 +29,10 @@
     }
 
     _loadDefaultLayout() {
-      const s1 = this._newStage(new Set(DEFAULT_LEVEL_CODES), "8:00 AM", "Stage 1");
-      const s2 = this._newStage(new Set(DEFAULT_LEVEL_CODES), "8:00 AM", "Stage 2");
-      const s3 = this._newStage(new Set(DEFAULT_LEVEL_CODES), "8:00 AM", "Stage 3");
-      const s4 = this._newStage(new Set([6, 7]), "8:00 AM", "Stage 4");
+      const s1 = this._newStage(new Set(DEFAULT_LEVEL_CODES), "08:00 AM", "Stage 1");
+      const s2 = this._newStage(new Set(DEFAULT_LEVEL_CODES), "08:00 AM", "Stage 2");
+      const s3 = this._newStage(new Set(DEFAULT_LEVEL_CODES), "08:00 AM", "Stage 3");
+      const s4 = this._newStage(new Set([6, 7]), "08:00 AM", "Stage 4");
       const groupId = this._nextGroupId++;
       this.groups[groupId] = { id: groupId, members: [s1, s2, s3], name: "Group 1" };
       this.slots = [
@@ -46,14 +46,14 @@
       this.stages[id] = {
         id,
         levelCodes: levelCodes || new Set(),
-        startTime: startTime || "8:00 AM",
+        startTime: startTime || "08:00 AM",
         name: name || `Stage ${id}`,
       };
       return id;
     }
 
     addStage() {
-      const id = this._newStage(new Set(), "8:00 AM");
+      const id = this._newStage(new Set(), "08:00 AM");
       this.slots.push({ kind: "stage", id });
       return id;
     }

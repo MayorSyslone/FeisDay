@@ -404,7 +404,14 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   gap: 1rem;
   margin: 0.5rem 0;
 }
+/* Sizes below are computed as a percentage of the page's own rendered
+ * width (via container query units) so they stay proportionally accurate
+ * to the real .docx regardless of how big the preview actually renders:
+ * page is 11in landscape with 0.5in margins, 170pt/105pt Arial bold text,
+ * 12pt page-number text -- all expressed here as %-of-page-width (1in =
+ * 100/11 = 9.09cqw), matching stage_number_printer.py's add_comp_page. */
 .printout-page {
+  container-type: inline-size;
   background: white;
   border: 1px solid var(--green-border);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
@@ -415,22 +422,28 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-family: Arial, sans-serif; /* matches the real docx's font exactly */
 }
 .printout-page-number {
   position: absolute;
-  bottom: 0.4rem;
-  right: 0.6rem;
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  bottom: 4.545cqw; /* 0.5in margin on an 11in-wide page, measured from the true page edge */
+  right: 4.545cqw;
+  font-family: Arial, sans-serif;
+  font-size: 1.515cqw; /* 12pt on a 792pt-wide (11in) page */
+  letter-spacing: normal;
+  color: var(--text-dark);
 }
 .printout-page-text {
   font-weight: bold;
   text-align: center;
   white-space: pre-line;
   line-height: 1.1;
+  letter-spacing: normal; /* python-docx applies no special spacing */
+  font-family: Arial, sans-serif;
+  max-width: 90.91cqw; /* keeps text within the 0.5in margins on each side */
 }
-.printout-page-text.single { font-size: 3.4rem; }
-.printout-page-text.mixed { font-size: 2rem; }
+.printout-page-text.single { font-size: 21.465cqw; } /* 170pt on an 11in-wide page */
+.printout-page-text.mixed { font-size: 13.258cqw; } /* 105pt on an 11in-wide page */
 
 /* ------------------------------------------------------------- loading */
 

@@ -254,7 +254,6 @@ class ScheduleModel {
    * Standalone regions are untouched (they never gain HOLD cells). */
   _trimEmptyRows() {
     for (const region of this.regions) {
-      if (region.type !== "group") continue;
       region.rows = region.rows.filter(
         (row) => !region.columns.every((c) => cellIsEmptyOrHold(row[c]))
       );
@@ -293,37 +292,27 @@ class ScheduleModel {
       const anchorKey = this.regionAnchorKey(region);
       let cumulative = this.anchorSeconds[anchorKey] || 0;
 
-      if (region.type === "standalone") {
-        const col = region.columns[0];
-        for (const row of region.rows) {
-          const cell = row[col];
-          if (!cell || cellIsBlank(cell)) continue;
-          cell.time = secondsToClockAmPm(cumulative);
-          cumulative += cell.duration || 0;
+      for (let rowIndex = 0; rowIndex < region.rows.length; rowIndex++) {
+        const row = region.rows[rowIndex];
+        const presentCells = region.columns.map((c) => row[c]).filter((c) => c && !cellIsBlank(c));
+        if (presentCells.length === 0) continue;
+
+        const nonHold = presentCells.filter((c) => !c.isHold);
+        const duration = nonHold.length ? Math.max(...nonHold.map((c) => c.duration || 0)) : 0;
+        const timeStr = secondsToClockAmPm(cumulative);
+        for (const c of region.columns) {
+          if (row[c] && !cellIsBlank(row[c])) row[c].time = timeStr;
         }
-      } else {
-        for (let rowIndex = 0; rowIndex < region.rows.length; rowIndex++) {
-          const row = region.rows[rowIndex];
-          const presentCells = region.columns.map((c) => row[c]).filter((c) => c && !cellIsBlank(c));
-          if (presentCells.length === 0) continue;
 
-          const nonHold = presentCells.filter((c) => !c.isHold);
-          const duration = nonHold.length ? Math.max(...nonHold.map((c) => c.duration || 0)) : 0;
-          const timeStr = secondsToClockAmPm(cumulative);
+        const danceTypes = new Set(nonHold.filter((c) => c.danceType).map((c) => c.danceType));
+        if (danceTypes.size > 1) {
           for (const c of region.columns) {
-            if (row[c] && !cellIsBlank(row[c])) row[c].time = timeStr;
-          }
-
-          const danceTypes = new Set(nonHold.filter((c) => c.danceType).map((c) => c.danceType));
-          if (danceTypes.size > 1) {
-            for (const c of region.columns) {
-              if (row[c] && !cellIsBlank(row[c]) && !row[c].isHold) {
-                conflicts.push({ regionIndex: this.regions.indexOf(region), rowIndex, stageIndex: c });
-              }
+            if (row[c] && !cellIsBlank(row[c]) && !row[c].isHold) {
+              conflicts.push({ regionIndex: this.regions.indexOf(region), rowIndex, stageIndex: c });
             }
           }
-          cumulative += duration;
         }
+        cumulative += duration;
       }
     }
     return conflicts;
