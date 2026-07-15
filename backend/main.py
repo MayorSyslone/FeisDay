@@ -1,6 +1,6 @@
 """
-Feis Schedule Builder — API (v0)
-=================================
+Feis Schedule Builder — API
+============================
 
 A thin FastAPI wrapper around the existing, unmodified scheduling scripts:
     schedule_creator.py, trad_set_optimizer.py, stage_number_printer.py
@@ -8,12 +8,9 @@ A thin FastAPI wrapper around the existing, unmodified scheduling scripts:
 None of that logic is reimplemented here. This file just gives it an HTTP
 front door: accept an uploaded CSV + settings, run schedule_creator.py
 exactly the way the desktop app did (as a subprocess with the same three
-CLI arguments), and hand back the resulting schedule as JSON.
-
-This is a starting point, not the finished thing — it does not yet do
-printouts, and the "editable table" is intentionally left to the frontend
-to build properly later. Its whole job right now is to prove the pipeline
-works end to end over HTTP.
+CLI arguments), and hand back the resulting schedule as JSON. Export bundles
+the current (possibly hand-edited) schedule CSV, a formatted schedule
+document, and the stage number printouts into a single downloadable zip.
 
 Run locally:
     pip install -r requirements.txt
@@ -89,38 +86,46 @@ async def generate_schedule(csv_file: UploadFile = File(...), settings: str = Fo
     return schedule_data
 
 
-@app.post("/api/generate-printouts")
-async def generate_printouts(csv_file: UploadFile = File(...)):
+@app.post("/api/export")
+async def export_everything(csv_file: UploadFile = File(...), printout_options: str = Form("{}")):
+    try:
+        options = json.loads(printout_options) if printout_options else {}
+    except json.JSONDecodeError:
+        raise HTTPException(400, "printout_options must be valid JSON")
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)
-        csv_path = tmp_path / "schedule.csv"
-        output_dir = tmp_path / "stage_printouts"
+        csv_path = tmp_path / "stage_schedule.csv"
+        schedule_doc_path = tmp_path / "stage_schedule.docx"
+        printouts_dir = tmp_path / "stage_printouts"
 
         with open(csv_path, "wb") as f:
             shutil.copyfileobj(csv_file.file, f)
 
         sys.path.insert(0, str(BASE_DIR))
-        from stage_number_printer import generate_stage_docs
+        from stage_number_printer import generate_stage_docs, generate_schedule_document
 
         try:
-            generate_stage_docs(str(csv_path), str(output_dir))
+            generate_schedule_document(str(csv_path), str(schedule_doc_path))
+            generate_stage_docs(str(csv_path), str(printouts_dir), options=options)
         except Exception as exc:
-            raise HTTPException(500, f"Printout generation failed: {exc}")
+            raise HTTPException(500, f"Export failed: {exc}")
 
-        docx_files = sorted(output_dir.glob("*.docx"))
-        if not docx_files:
-            raise HTTPException(500, "No printout files were generated.")
+        docx_files = sorted(printouts_dir.glob("*.docx"))
 
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(csv_path, arcname="stage_schedule.csv")
+            if schedule_doc_path.exists():
+                zf.write(schedule_doc_path, arcname="stage_schedule.docx")
             for docx_path in docx_files:
-                zf.write(docx_path, arcname=docx_path.name)
+                zf.write(docx_path, arcname=f"stage_printouts/{docx_path.name}")
         zip_buffer.seek(0)
 
     return StreamingResponse(
         zip_buffer,
         media_type="application/zip",
-        headers={"Content-Disposition": "attachment; filename=stage_printouts.zip"},
+        headers={"Content-Disposition": "attachment; filename=feis_schedule_export.zip"},
     )
 
 
