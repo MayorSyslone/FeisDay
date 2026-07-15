@@ -45,10 +45,6 @@ def parse_stage_entries(stage_column_values):
     return entries
 
 
-def _strip_trailing_count(entry):
-    return re.sub(r"\s*\(\d+\)\s*$", "", entry).strip()
-
-
 def _strip_all_counts(entry):
     parts = entry.split("/")
     stripped = [re.sub(r"\s*\(\d+\)\s*$", "", part).strip() for part in parts]
@@ -60,7 +56,7 @@ def competition_label_for_page(entry, show_dancer_count=True):
     if upper in {"HOLD", "LUNCH"}:
         return upper, False
 
-    base = _strip_trailing_count(entry) if show_dancer_count else _strip_all_counts(entry)
+    base = entry if show_dancer_count else _strip_all_counts(entry)
     parts = [part.strip() for part in base.split("/") if part.strip()]
     if len(parts) <= 1:
         return base, False
@@ -75,15 +71,15 @@ def build_print_pages(stage_entries, stage_name="", options=None):
     Physical stacking note: pages are generated in this list's order, and
     when printed single-sided and stacked normally, whichever page is
     generated LAST ends up on TOP of the stack. So "at the start" (stage
-    name, then HOLD, both optional) means those go at the very END of this
-    list -- last generated, ends up on top, seen first when you walk up to
-    the stage before the event begins.
+    name, then HOLD, both optional) means those sit at the very START of
+    the natural (non-reversed) order -- title page first, then HOLD, then
+    the day itself in chronological order. reverse_order simply reverses
+    this whole sequence as one unit (title and HOLD included), which is
+    what puts them at the end, physically on top of a printed stack, seen
+    first when you walk up to the stage before the event begins.
 
     Page numbers always represent true chronological position (page 1 =
-    the first real competition of the day), regardless of reverse_order --
-    when reverse_order is on, numbering counts DOWN in display order to
-    stay correct for the physical top-to-bottom reveal as pages are
-    removed through the day.
+    the first real competition of the day), regardless of reverse_order.
     """
     opts = dict(DEFAULT_PRINTOUT_OPTIONS)
     if options:
@@ -96,34 +92,32 @@ def build_print_pages(stage_entries, stage_name="", options=None):
     chronological = [e for e in entries if e.upper() != "HOLD"]
     total_pages = len(chronological)
 
-    numbered = [(entry, index + 1) for index, entry in enumerate(chronological)]
-    display_order = list(reversed(numbered)) if opts["reverse_order"] else numbered
-
-    pages = []
-    for entry, page_number in display_order:
-        text, is_mixed = competition_label_for_page(entry, opts["show_dancer_count"])
-        pages.append({
-            "text": text,
-            "is_mixed": is_mixed,
-            "is_hold": False,
-            "is_title": False,
-            "page_number": page_number if opts["show_page_numbers"] else None,
-            "total_pages": total_pages,
-        })
-
-    if opts["include_hold_page"]:
-        pages.append({
-            "text": "HOLD", "is_mixed": False, "is_hold": True, "is_title": False,
-            "page_number": None, "total_pages": total_pages,
-        })
+    natural_pages = []
 
     if opts["include_stage_name_page"]:
-        pages.append({
+        natural_pages.append({
             "text": stage_name or "Stage", "is_mixed": False, "is_hold": True, "is_title": True,
             "page_number": None, "total_pages": total_pages,
         })
 
-    return pages
+    if opts["include_hold_page"]:
+        natural_pages.append({
+            "text": "HOLD", "is_mixed": False, "is_hold": True, "is_title": False,
+            "page_number": None, "total_pages": total_pages,
+        })
+
+    for index, entry in enumerate(chronological):
+        text, is_mixed = competition_label_for_page(entry, opts["show_dancer_count"])
+        natural_pages.append({
+            "text": text,
+            "is_mixed": is_mixed,
+            "is_hold": False,
+            "is_title": False,
+            "page_number": (index + 1) if opts["show_page_numbers"] else None,
+            "total_pages": total_pages,
+        })
+
+    return list(reversed(natural_pages)) if opts["reverse_order"] else natural_pages
 
 
 def add_comp_page(document, page):

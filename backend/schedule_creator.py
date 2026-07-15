@@ -68,12 +68,12 @@ group_names = _config_overrides.get("group_names", [f"Group {i + 1}" for i in ra
 
 dance_type_order = _config_overrides.get(
     "dance_type_order",
-    ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single Jig", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"],
+    ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"],
 )
 
 dance_level_order = _config_overrides.get(
     "dance_level_order",
-    ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Need", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"],
+    ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"],
 )
 
 # "youngest_first" (default, ascending) or "oldest_first" (descending).

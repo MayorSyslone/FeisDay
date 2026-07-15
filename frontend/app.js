@@ -1,6 +1,20 @@
 const board = new StageBoard();
 let gridController = null;
 
+preloadLoadingArtwork();
+
+function preloadLoadingArtwork() {
+  fetch("/api/loading-artworks")
+    .then((response) => response.json())
+    .then((data) => {
+      (data.files || []).forEach((filename) => {
+        const img = new Image();
+        img.src = `loading-artwork/${filename}`;
+      });
+    })
+    .catch(() => {}); // non-critical; the loading overlay falls back gracefully either way
+}
+
 document.getElementById("info-btn").addEventListener("click", showInfoModal);
 
 function showInfoModal() {
@@ -66,8 +80,8 @@ populateTimeSelect(lunchEndInput, "01:00 PM");
 // that's what the backend falls back to if these keys aren't sent at all —
 // keeping them in sync means "never touched the order" behaves identically
 // whether or not the config explicitly includes them.
-const DEFAULT_DANCE_ORDER = ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single Jig", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"];
-const DEFAULT_LEVEL_ORDER = ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Need", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"];
+const DEFAULT_DANCE_ORDER = ["Treble Reel", "Treble Jig", "Slip Jig", "Hornpipe", "Single (Hop) Jig", "Reel", "Light Jig", "2 Rounds", "3 Rounds", "Traditional Set", "4 Hand", "8 Hand", "Dancers Choice"];
+const DEFAULT_LEVEL_ORDER = ["Advanced Beginner thru Prizewinner Charity", "Prelim & Champ Charity", "Special Needs", "PreBeginner", "Beginner", "Adult Beginner", "Advanced Beginner", "Adult Adv Beginner", "Novice", "Adult Novice", "Prizewinner", "Adult Prizewinner", "Preliminary", "Champion", "Adult Championship", "All Levels", "Team"];
 
 const danceOrderItems = DEFAULT_DANCE_ORDER.slice();
 const levelOrderItems = DEFAULT_LEVEL_ORDER.slice();

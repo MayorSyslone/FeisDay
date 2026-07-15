@@ -34,10 +34,6 @@
     return entries;
   }
 
-  function stripTrailingCount(entry) {
-    return entry.replace(/\s*\(\d+\)\s*$/, "").trim();
-  }
-
   function stripAllCounts(entry) {
     return entry.split("/").map((part) => part.replace(/\s*\(\d+\)\s*$/, "").trim()).join("/");
   }
@@ -48,7 +44,7 @@
     if (upper === "HOLD" || upper === "LUNCH") {
       return { text: upper, isMixed: false, isHold: upper === "HOLD" };
     }
-    const base = showDancerCount ? stripTrailingCount(entry) : stripAllCounts(entry);
+    const base = showDancerCount ? entry : stripAllCounts(entry);
     const parts = base.split("/").map((p) => p.trim()).filter((p) => p.length);
     if (parts.length <= 1) {
       return { text: base, isMixed: false, isHold: false };
@@ -60,8 +56,9 @@
    * stage_number_printer.py's build_print_pages for the full physical-
    * stacking rationale (last generated = top of a printed stack, so the
    * optional HOLD/stage-name pages go at the very END of this list; page
-   * numbers always track true chronological position and count DOWN in
-   * display order when reverseOrder is on). */
+   * numbers always track true chronological position. Stage name/HOLD sit
+   * at the START of the natural (non-reversed) order; reverseOrder simply
+   * reverses the whole sequence as one unit, title and HOLD included. */
   function buildPrintPages(cells, stageName = "", options = {}) {
     const opts = Object.assign({}, DEFAULT_PRINTOUT_OPTIONS, options);
 
@@ -73,26 +70,25 @@
     const chronological = entries.filter((e) => e.toUpperCase() !== "HOLD");
     const totalPages = chronological.length;
 
-    const numbered = chronological.map((entry, index) => ({ entry, pageNumber: index + 1 }));
-    const displayOrder = opts.reverseOrder ? numbered.slice().reverse() : numbered;
+    const naturalPages = [];
 
-    const pages = displayOrder.map(({ entry, pageNumber }) => {
+    if (opts.includeStageNamePage) {
+      naturalPages.push({ text: stageName || "Stage", isMixed: false, isHold: true, isTitle: true, pageNumber: null, totalPages });
+    }
+    if (opts.includeHoldPage) {
+      naturalPages.push({ text: "HOLD", isMixed: false, isHold: true, isTitle: false, pageNumber: null, totalPages });
+    }
+
+    chronological.forEach((entry, index) => {
       const label = competitionLabelForPage(entry, opts.showDancerCount);
-      return Object.assign(label, {
+      naturalPages.push(Object.assign(label, {
         isTitle: false,
-        pageNumber: opts.showPageNumbers ? pageNumber : null,
+        pageNumber: opts.showPageNumbers ? index + 1 : null,
         totalPages,
-      });
+      }));
     });
 
-    if (opts.includeHoldPage) {
-      pages.push({ text: "HOLD", isMixed: false, isHold: true, isTitle: false, pageNumber: null, totalPages });
-    }
-    if (opts.includeStageNamePage) {
-      pages.push({ text: stageName || "Stage", isMixed: false, isHold: true, isTitle: true, pageNumber: null, totalPages });
-    }
-
-    return pages;
+    return opts.reverseOrder ? naturalPages.slice().reverse() : naturalPages;
   }
 
   return {

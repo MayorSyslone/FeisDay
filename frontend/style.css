@@ -319,7 +319,16 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   cursor: grab;
 }
 .dl-handle { color: var(--text-muted); font-size: 0.9rem; }
-.dl-drop-target { background: var(--green-accent-light); border-color: var(--green-accent); }
+.dl-edge-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--green-accent-dark);
+  display: none;
+  z-index: 5;
+  pointer-events: none;
+}
 .dl-ghost {
   position: fixed;
   z-index: 1000;
