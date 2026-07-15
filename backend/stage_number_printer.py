@@ -11,6 +11,15 @@ from docx.shared import Inches, Pt
 
 PAGE_FOOTER_ALLOWANCE = Pt(18)
 
+DEFAULT_PRINTOUT_OPTIONS = {
+    "include_stage_name_page": True,
+    "include_hold_page": True,
+    "include_lunch_page": True,
+    "show_dancer_count": True,
+    "show_page_numbers": True,
+    "reverse_order": True,
+}
+
 
 def configure_page_layout(document):
     section = document.sections[0]
@@ -36,28 +45,88 @@ def parse_stage_entries(stage_column_values):
     return entries
 
 
-def build_print_order(stage_entries):
-    # Drop middle HOLDs, keep LUNCH, reverse order, and force final HOLD page.
-    non_hold_entries = [entry for entry in stage_entries if entry.upper() != "HOLD"]
-    ordered = list(reversed(non_hold_entries))
-    ordered.append("HOLD")
-    return ordered
+def _strip_trailing_count(entry):
+    return re.sub(r"\s*\(\d+\)\s*$", "", entry).strip()
 
 
-def competition_label_for_page(entry):
+def _strip_all_counts(entry):
+    parts = entry.split("/")
+    stripped = [re.sub(r"\s*\(\d+\)\s*$", "", part).strip() for part in parts]
+    return "/".join(stripped)
+
+
+def competition_label_for_page(entry, show_dancer_count=True):
     upper = entry.upper()
     if upper in {"HOLD", "LUNCH"}:
         return upper, False
 
-    no_count = re.sub(r"\s*\(\d+\)\s*$", "", entry).strip()
-    parts = [part.strip() for part in no_count.split("/") if part.strip()]
+    base = _strip_trailing_count(entry) if show_dancer_count else _strip_all_counts(entry)
+    parts = [part.strip() for part in base.split("/") if part.strip()]
     if len(parts) <= 1:
-        return no_count, False
+        return base, False
     return "\n".join(parts), True
 
 
-def add_comp_page(document, entry):
-    text, is_mixed = competition_label_for_page(entry)
+def build_print_pages(stage_entries, stage_name="", options=None):
+    """Turns a stage's raw schedule entries (chronological order) into a
+    list of print-ready pages: [{text, is_mixed, is_hold, page_number,
+    total_pages, is_title}, ...].
+
+    Physical stacking note: pages are generated in this list's order, and
+    when printed single-sided and stacked normally, whichever page is
+    generated LAST ends up on TOP of the stack. So "at the start" (stage
+    name, then HOLD, both optional) means those go at the very END of this
+    list -- last generated, ends up on top, seen first when you walk up to
+    the stage before the event begins.
+
+    Page numbers always represent true chronological position (page 1 =
+    the first real competition of the day), regardless of reverse_order --
+    when reverse_order is on, numbering counts DOWN in display order to
+    stay correct for the physical top-to-bottom reveal as pages are
+    removed through the day.
+    """
+    opts = dict(DEFAULT_PRINTOUT_OPTIONS)
+    if options:
+        opts.update(options)
+
+    entries = stage_entries
+    if not opts["include_lunch_page"]:
+        entries = [e for e in entries if e.upper() != "LUNCH"]
+
+    chronological = [e for e in entries if e.upper() != "HOLD"]
+    total_pages = len(chronological)
+
+    numbered = [(entry, index + 1) for index, entry in enumerate(chronological)]
+    display_order = list(reversed(numbered)) if opts["reverse_order"] else numbered
+
+    pages = []
+    for entry, page_number in display_order:
+        text, is_mixed = competition_label_for_page(entry, opts["show_dancer_count"])
+        pages.append({
+            "text": text,
+            "is_mixed": is_mixed,
+            "is_hold": False,
+            "is_title": False,
+            "page_number": page_number if opts["show_page_numbers"] else None,
+            "total_pages": total_pages,
+        })
+
+    if opts["include_hold_page"]:
+        pages.append({
+            "text": "HOLD", "is_mixed": False, "is_hold": True, "is_title": False,
+            "page_number": None, "total_pages": total_pages,
+        })
+
+    if opts["include_stage_name_page"]:
+        pages.append({
+            "text": stage_name or "Stage", "is_mixed": False, "is_hold": True, "is_title": True,
+            "page_number": None, "total_pages": total_pages,
+        })
+
+    return pages
+
+
+def add_comp_page(document, page):
     section = document.sections[0]
 
     table = document.add_table(rows=1, cols=1)
@@ -72,45 +141,107 @@ def add_comp_page(document, entry):
     paragraph = cell.paragraphs[0]
     paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
-    run = paragraph.add_run(text)
+    run = paragraph.add_run(page["text"])
     run.bold = True
     run.font.name = "Arial"
-    run.font.size = Pt(105 if is_mixed else 170)
+    run.font.size = Pt(105 if page["is_mixed"] else 170)
+
+    if page.get("page_number") is not None:
+        number_paragraph = cell.add_paragraph()
+        number_paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        number_run = number_paragraph.add_run(f"Page {page['page_number']} of {page['total_pages']}")
+        number_run.font.name = "Arial"
+        number_run.font.size = Pt(12)
 
 
-def generate_stage_docs(stage_schedule_csv, output_dir):
+def _find_stage_comp_columns(df):
+    """Returns [(stage_name, comp_column_name), ...]. Works for any stage
+    name (not just "Stage N"), since custom names are supported."""
+    pairs = []
+    for col in df.columns:
+        col_str = str(col).strip()
+        if col_str.endswith(" Comp"):
+            pairs.append((col_str[: -len(" Comp")].strip(), col_str))
+    if not pairs:
+        # Back-compat: older exports used a bare "Stage N" column with no
+        # separate Time/Comp split.
+        for col in df.columns:
+            col_str = str(col).strip()
+            if re.fullmatch(r"Stage \d+", col_str, flags=re.IGNORECASE):
+                pairs.append((col_str, col_str))
+    return pairs
+
+
+def generate_stage_docs(stage_schedule_csv, output_dir, options=None):
     df = pd.read_csv(stage_schedule_csv)
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    stage_columns = [
-        col
-        for col in df.columns
-        if re.fullmatch(r"Stage \d+ Comp", str(col).strip(), flags=re.IGNORECASE)
-    ]
-    if not stage_columns:
-        stage_columns = [
-            col
-            for col in df.columns
-            if re.fullmatch(r"Stage \d+", str(col).strip(), flags=re.IGNORECASE)
-        ]
-    if not stage_columns:
+    stage_pairs = _find_stage_comp_columns(df)
+    if not stage_pairs:
         raise ValueError(
-            "No stage columns found. Expected headers like 'Stage 1 Comp' or 'Stage 1'."
+            "No stage columns found. Expected headers like '<Stage Name> Comp'."
         )
 
-    for stage_column in stage_columns:
-        entries = parse_stage_entries(df[stage_column].tolist())
-        print_order = build_print_order(entries)
+    for stage_name, comp_column in stage_pairs:
+        # Row 0 of every stage column is always the stage name itself, by
+        # construction (schedule_creator.py writes it as a placeholder
+        # first row) -- never real schedule data, so it's always skipped.
+        entries = parse_stage_entries(df[comp_column].tolist()[1:])
+        pages = build_print_pages(entries, stage_name=stage_name, options=options)
 
         document = Document()
         configure_page_layout(document)
 
-        for page_index, entry in enumerate(print_order):
-            add_comp_page(document, entry)
+        for page in pages:
+            add_comp_page(document, page)
 
-        filename = stage_column.replace(" ", "_").lower() + "_numbers.docx"
+        safe_name = re.sub(r"[^A-Za-z0-9]+", "_", stage_name).strip("_").lower() or "stage"
+        filename = f"{safe_name}_numbers.docx"
         document.save(output_path / filename)
+
+
+def generate_schedule_document(stage_schedule_csv, output_path):
+    """A basic, formatted Word version of the master schedule: one table
+    per stage (Time | Competition), landscape. Intentionally simple for
+    now -- a first working version, not yet configurable."""
+    df = pd.read_csv(stage_schedule_csv)
+    stage_pairs = []
+    for col in df.columns:
+        col_str = str(col).strip()
+        if col_str.endswith(" Time"):
+            stage_name = col_str[: -len(" Time")].strip()
+            comp_col = f"{stage_name} Comp"
+            if comp_col in df.columns:
+                stage_pairs.append((stage_name, col_str, comp_col))
+
+    document = Document()
+    configure_page_layout(document)
+
+    for i, (stage_name, time_col, comp_col) in enumerate(stage_pairs):
+        if i > 0:
+            document.add_page_break()
+
+        heading = document.add_heading(stage_name, level=1)
+
+        table = document.add_table(rows=1, cols=2)
+        table.style = "Light Grid Accent 1"
+        header_cells = table.rows[0].cells
+        header_cells[0].text = "Time"
+        header_cells[1].text = "Competition"
+        for cell in header_cells:
+            for p in cell.paragraphs:
+                for r in p.runs:
+                    r.bold = True
+
+        for time_value, comp_value in zip(df[time_col].tolist()[1:], df[comp_col].tolist()[1:]):
+            if pd.isna(comp_value) or not str(comp_value).strip():
+                continue
+            row_cells = table.add_row().cells
+            row_cells[0].text = "" if pd.isna(time_value) else str(time_value)
+            row_cells[1].text = str(comp_value)
+
+    document.save(output_path)
 
 
 if __name__ == "__main__":

@@ -86,24 +86,34 @@
       </p>
     </div>
 
-    <div class="step-action">
-      <button type="button" id="save-csv-btn" class="btn btn-accent" disabled>Save schedule CSV…</button>
-    </div>
-
     <p id="status" class="muted"></p>
   </section>
 
   <section class="panel" id="printouts-panel" style="display:none;">
     <h2>Stage number printouts</h2>
-    <p class="muted">Click a stage to preview its printout pages. This preview is generated live in your browser and always reflects your current edits.</p>
+    <p class="muted">Click a stage to preview its printout pages. This preview is generated live in your browser and always reflects your current edits and options below.</p>
+
+    <h3 style="margin-top:0.75rem;">Printout options</h3>
+    <div class="printout-options-grid">
+      <label><input type="checkbox" id="opt-stage-name-page" checked> Stage name page at start</label>
+      <label><input type="checkbox" id="opt-hold-page" checked> HOLD page at start</label>
+      <label><input type="checkbox" id="opt-lunch-page" checked> LUNCH page</label>
+      <label><input type="checkbox" id="opt-dancer-count" checked> Show dancer count for each competition</label>
+      <label><input type="checkbox" id="opt-page-numbers" checked> Page numbers</label>
+      <label><input type="checkbox" id="opt-reverse-order" checked> Print in reverse order (easy to hang in front of stage)</label>
+    </div>
 
     <div id="printout-stage-tabs" class="printout-tabs"></div>
 
     <div id="printout-preview" class="printout-preview"></div>
+  </section>
 
-    <div class="step-action" style="margin-top:0.75rem;">
-      <button type="button" id="download-printouts-btn" class="btn btn-accent">Download all stage printouts (.docx)</button>
-      <span id="printouts-status" class="muted"></span>
+  <section class="panel">
+    <h2>Export</h2>
+    <p class="muted">Downloads a zip with the schedule CSV, a formatted schedule document, and every stage's printout pages (using the options above).</p>
+    <div class="step-action">
+      <button type="button" id="export-btn" class="btn btn-accent" disabled>Export schedule &amp; printouts</button>
+      <span id="export-status" class="muted"></span>
     </div>
   </section>
 

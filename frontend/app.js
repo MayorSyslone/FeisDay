@@ -27,9 +27,11 @@ function showInfoModal() {
         so you can offset it left/right into whichever stages you drop it on).
         <code>Ctrl+Z</code> (<code>Cmd+Z</code> on Mac) undoes the last move. Times and any
         dance-type conflicts (highlighted red) update automatically after every move.</li>
-      <li><strong>Save schedule CSV</strong> — downloads the current (edited) schedule.</li>
-      <li><strong>Stage number printouts</strong> — preview each stage's big-print pages, then
-        download the real .docx files for posting at each stage.</li>
+      <li><strong>Stage number printouts</strong> — set your options (stage name page, HOLD page,
+        LUNCH page, dancer counts, page numbers, reverse order), then preview each stage's
+        big-print pages live.</li>
+      <li><strong>Export</strong> — one button downloads a zip with the schedule CSV, a formatted
+        schedule document, and every stage's printout pages.</li>
     </ol>
   `;
   const closeBtn = document.createElement("button");
@@ -113,7 +115,6 @@ const generateBtn = document.getElementById("generate-btn");
 const scheduleCheck = document.getElementById("schedule-check");
 const gridContainer = document.getElementById("grid-container");
 const gridHint = document.getElementById("grid-hint");
-const saveCsvBtn = document.getElementById("save-csv-btn");
 const statusEl = document.getElementById("status");
 
 csvFileInput.addEventListener("change", () => {
@@ -182,15 +183,9 @@ function mountGrid(sidecarData) {
     },
   });
 
-  saveCsvBtn.disabled = false;
+  exportBtn.disabled = false;
   mountPrintoutPreview();
 }
-
-saveCsvBtn.addEventListener("click", () => {
-  if (!gridController) return;
-  const columns = gridController.getModel().toColumns();
-  downloadBlob(buildCsvBlob(columns), "stage_schedule.csv");
-});
 
 function buildCsvBlob(columns) {
   const names = Object.keys(columns);
@@ -238,18 +233,57 @@ function csvEscape(value) {
 const printoutsPanel = document.getElementById("printouts-panel");
 const printoutTabsEl = document.getElementById("printout-stage-tabs");
 const printoutPreviewEl = document.getElementById("printout-preview");
-const downloadPrintoutsBtn = document.getElementById("download-printouts-btn");
-const printoutsStatusEl = document.getElementById("printouts-status");
+
+const optStageNamePage = document.getElementById("opt-stage-name-page");
+const optHoldPage = document.getElementById("opt-hold-page");
+const optLunchPage = document.getElementById("opt-lunch-page");
+const optDancerCount = document.getElementById("opt-dancer-count");
+const optPageNumbers = document.getElementById("opt-page-numbers");
+const optReverseOrder = document.getElementById("opt-reverse-order");
+
+const PRINTOUT_OPTION_CHECKBOXES = [
+  optStageNamePage, optHoldPage, optLunchPage, optDancerCount, optPageNumbers, optReverseOrder,
+];
+PRINTOUT_OPTION_CHECKBOXES.forEach((checkbox) => {
+  checkbox.addEventListener("change", () => {
+    if (currentPrintoutStageIndex !== null) showStagePrintout(currentPrintoutStageIndex);
+  });
+});
+
+function buildPrintoutOptionsJs() {
+  return {
+    includeStageNamePage: optStageNamePage.checked,
+    includeHoldPage: optHoldPage.checked,
+    includeLunchPage: optLunchPage.checked,
+    showDancerCount: optDancerCount.checked,
+    showPageNumbers: optPageNumbers.checked,
+    reverseOrder: optReverseOrder.checked,
+  };
+}
+
+function buildPrintoutOptionsForBackend() {
+  return {
+    include_stage_name_page: optStageNamePage.checked,
+    include_hold_page: optHoldPage.checked,
+    include_lunch_page: optLunchPage.checked,
+    show_dancer_count: optDancerCount.checked,
+    show_page_numbers: optPageNumbers.checked,
+    reverse_order: optReverseOrder.checked,
+  };
+}
 
 let printoutPages = [];
+let currentPrintoutStageIndex = null;
 
 function showStagePrintout(stageIndex) {
+  currentPrintoutStageIndex = stageIndex;
   // Always re-read from the live model so the preview reflects any edits
   // made since the schedule was generated.
-  const columns = gridController.getModel().toColumns();
-  const name = gridController.getModel().stageMeta[stageIndex].name;
+  const model = gridController.getModel();
+  const columns = model.toColumns();
+  const name = model.stageMeta[stageIndex].name;
   const cells = columns[name] || [];
-  printoutPages = PrintoutLogic.buildPrintPages(cells);
+  printoutPages = PrintoutLogic.buildPrintPages(cells, name, buildPrintoutOptionsJs());
   renderAllPrintoutPages();
 }
 
@@ -259,7 +293,7 @@ function renderAllPrintoutPages() {
     printoutPreviewEl.textContent = "Nothing to print for this stage yet.";
     return;
   }
-  printoutPages.forEach((page, i) => {
+  printoutPages.forEach((page) => {
     const pageEl = document.createElement("div");
     pageEl.className = "printout-page";
 
@@ -268,10 +302,12 @@ function renderAllPrintoutPages() {
     textEl.textContent = page.text;
     pageEl.appendChild(textEl);
 
-    const numberEl = document.createElement("div");
-    numberEl.className = "printout-page-number";
-    numberEl.textContent = page.pageNumber !== null ? `Page ${page.pageNumber} of ${page.totalPages}` : "";
-    pageEl.appendChild(numberEl);
+    if (page.pageNumber !== null) {
+      const numberEl = document.createElement("div");
+      numberEl.className = "printout-page-number";
+      numberEl.textContent = `Page ${page.pageNumber} of ${page.totalPages}`;
+      pageEl.appendChild(numberEl);
+    }
 
     printoutPreviewEl.appendChild(pageEl);
   });
@@ -300,36 +336,41 @@ function mountPrintoutPreview() {
   if (stageIndices.length) showStagePrintout(stageIndices[0]);
 }
 
+// ------------------------------------------------------------------ export
 
-downloadPrintoutsBtn.addEventListener("click", async () => {
+const exportBtn = document.getElementById("export-btn");
+const exportStatusEl = document.getElementById("export-status");
+
+exportBtn.addEventListener("click", async () => {
   if (!gridController) return;
   const columns = gridController.getModel().toColumns();
   const csvBlob = buildCsvBlob(columns);
 
   const formData = new FormData();
-  formData.append("csv_file", csvBlob, "schedule.csv");
+  formData.append("csv_file", csvBlob, "stage_schedule.csv");
+  formData.append("printout_options", JSON.stringify(buildPrintoutOptionsForBackend()));
 
-  downloadPrintoutsBtn.disabled = true;
-  printoutsStatusEl.textContent = "Generating printouts…";
-  const overlay = showLoadingOverlay("Building printouts");
+  exportBtn.disabled = true;
+  exportStatusEl.textContent = "Building export…";
+  const overlay = showLoadingOverlay("Building export");
 
   try {
-    const response = await fetch("/api/generate-printouts", { method: "POST", body: formData });
+    const response = await fetch("/api/export", { method: "POST", body: formData });
     overlay.finish();
     if (!response.ok) {
       const errorText = await response.text();
-      printoutsStatusEl.textContent = "Printout generation failed.";
-      alert(`Printout generation failed:\n${errorText}`);
+      exportStatusEl.textContent = "Export failed.";
+      alert(`Export failed:\n${errorText}`);
       return;
     }
     const zipBlob = await response.blob();
-    downloadBlob(zipBlob, "stage_printouts.zip");
-    printoutsStatusEl.textContent = "Printouts downloaded.";
+    downloadBlob(zipBlob, "feis_schedule_export.zip");
+    exportStatusEl.textContent = "Export downloaded.";
   } catch (err) {
     overlay.finish();
-    printoutsStatusEl.textContent = "Printout generation failed.";
-    alert(`Printout generation failed:\n${err}`);
+    exportStatusEl.textContent = "Export failed.";
+    alert(`Export failed:\n${err}`);
   } finally {
-    downloadPrintoutsBtn.disabled = false;
+    exportBtn.disabled = false;
   }
 });
