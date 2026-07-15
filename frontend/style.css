@@ -232,6 +232,9 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .sg-region {
   border-radius: 8px;
   padding: 0.4rem;
+  position: relative; /* the edge-line indicator is absolutely positioned against this,
+                          for BOTH region types -- a standalone stage is functionally
+                          just a 1-column group and needs the exact same anchor. */
 }
 .sg-region-standalone {
   background: var(--green-card);
@@ -240,7 +243,6 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .sg-region-group {
   background: var(--green-group-bg);
   border: 2px solid var(--green-accent);
-  position: relative;
 }
 
 .sg-group-label {
