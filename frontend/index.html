@@ -4,11 +4,23 @@
 <meta charset="utf-8">
 <title>Feis Schedule Builder</title>
 <link rel="stylesheet" href="style.css">
+<script>
+  // Applied before first paint (not deferred to app.js) so there's no
+  // flash of the wrong theme while the rest of the page loads.
+  (function () {
+    var stored = localStorage.getItem("theme");
+    var systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.setAttribute("data-theme", stored || (systemDark ? "dark" : "light"));
+  })();
+</script>
 </head>
 <body>
   <header class="app-header">
     <h1>Feis Schedule Builder</h1>
-    <button type="button" id="info-btn" class="btn">Instructions &amp; info</button>
+    <div class="header-actions">
+      <button type="button" id="theme-toggle-btn" class="btn">🌙 Dark mode</button>
+      <button type="button" id="info-btn" class="btn">Instructions &amp; info</button>
+    </div>
   </header>
 
   <section class="panel">

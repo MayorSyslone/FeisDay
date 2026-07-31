@@ -1,7 +1,9 @@
 /**
  * Drag-to-reorder list (dance order / level order in Advanced settings).
  * Pure logic (moveItem, computeInsertIndex) is separated out for testing;
- * mountDraggableList is the DOM/mouse-event layer on top of it.
+ * mountDraggableList is the DOM/mouse-event layer on top of it. The list
+ * itself live-reorders during the drag (not just after dropping), so you
+ * can see exactly where the item will land as you move the mouse.
  */
 
 (function (root, factory) {
@@ -28,9 +30,9 @@
   }
 
   /** Converts a hovered "edge" position (0..N, the gap before item `edge`
-   * in the original N-item list) into the final index moveItem expects.
-   * Edges after the dragged item's own position shift down by one once
-   * it's removed. */
+   * in the CURRENT list) into the final index moveItem expects. Edges
+   * after the dragged item's own position shift down by one once it's
+   * removed. */
   function computeInsertIndex(from, edge) {
     return edge > from ? edge - 1 : edge;
   }
@@ -39,20 +41,18 @@
 });
 
 function mountDraggableList(container, items, onChange) {
-  let dragIndex = null;
+  let draggedValue = null; // identity of the dragged item; safe since these lists never repeat a value
+  let previewItems = null; // live working copy during a drag, null when idle
   let ghostEl = null;
-  let edgeLineEl = null;
-  let currentEdge = null;
 
   container.style.position = "relative";
-  render();
+  render(items);
 
-  function render() {
+  function render(list) {
     container.innerHTML = "";
-    items.forEach((label, index) => {
+    list.forEach((label) => {
       const row = document.createElement("div");
-      row.className = "dl-row";
-      row.dataset.index = String(index);
+      row.className = "dl-row" + (label === draggedValue ? " dl-row-dragging" : "");
 
       const handle = document.createElement("span");
       handle.className = "dl-handle";
@@ -64,13 +64,9 @@ function mountDraggableList(container, items, onChange) {
       text.textContent = label;
       row.appendChild(text);
 
-      row.addEventListener("mousedown", (event) => onRowMouseDown(event, index));
+      row.addEventListener("mousedown", (event) => onRowMouseDown(event, label));
       container.appendChild(row);
     });
-
-    edgeLineEl = document.createElement("div");
-    edgeLineEl.className = "dl-edge-line";
-    container.appendChild(edgeLineEl);
   }
 
   function rows() {
@@ -78,7 +74,7 @@ function mountDraggableList(container, items, onChange) {
   }
 
   /** Y position (viewport coords) of edge `index`: 0 = above the first
-   * row, N = below the last row, matching the schedule grid's edgeY. */
+   * row, N = below the last row. */
   function edgeY(edgeIndex) {
     const rowEls = rows();
     if (rowEls.length === 0) return null;
@@ -102,25 +98,15 @@ function mountDraggableList(container, items, onChange) {
     return best;
   }
 
-  function showEdgeLine(edge) {
-    const y = edgeY(edge);
-    if (y === null) return;
-    const containerRect = container.getBoundingClientRect();
-    edgeLineEl.style.top = `${y - containerRect.top}px`;
-    edgeLineEl.style.display = "block";
-  }
-
-  function hideEdgeLine() {
-    if (edgeLineEl) edgeLineEl.style.display = "none";
-  }
-
-  function onRowMouseDown(event, index) {
-    dragIndex = index;
+  function onRowMouseDown(event, label) {
+    draggedValue = label;
+    previewItems = items.slice();
     ghostEl = document.createElement("div");
     ghostEl.className = "dl-ghost";
-    ghostEl.textContent = items[index];
+    ghostEl.textContent = label;
     document.body.appendChild(ghostEl);
     positionGhost(event.clientX, event.clientY);
+    render(previewItems);
     event.preventDefault();
   }
 
@@ -132,24 +118,29 @@ function mountDraggableList(container, items, onChange) {
   }
 
   function onMouseMove(event) {
-    if (dragIndex === null) return;
+    if (draggedValue === null) return;
     positionGhost(event.clientX, event.clientY);
-    currentEdge = nearestEdge(event.clientY);
-    showEdgeLine(currentEdge);
+
+    const currentIndex = previewItems.indexOf(draggedValue);
+    const edge = nearestEdge(event.clientY);
+    const insertAt = computeInsertIndex(currentIndex, edge);
+    if (insertAt !== currentIndex) {
+      moveItem(previewItems, currentIndex, insertAt);
+      render(previewItems);
+    }
   }
 
   function onMouseUp() {
-    if (dragIndex === null) return;
-    const from = dragIndex;
-    dragIndex = null;
+    if (draggedValue === null) return;
     if (ghostEl) { ghostEl.remove(); ghostEl = null; }
-    hideEdgeLine();
 
-    if (currentEdge !== null) {
-      moveItem(items, from, computeInsertIndex(from, currentEdge));
+    if (previewItems) {
+      items.length = 0;
+      items.push(...previewItems);
     }
-    currentEdge = null;
-    render();
+    draggedValue = null;
+    previewItems = null;
+    render(items);
     onChange(items);
   }
 

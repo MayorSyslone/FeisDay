@@ -1,6 +1,41 @@
 const board = new StageBoard();
 let gridController = null;
 
+initTheme();
+
+function initTheme() {
+  const toggleBtn = document.getElementById("theme-toggle-btn");
+
+  function currentTheme() {
+    return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  }
+
+  function reflectButton() {
+    toggleBtn.textContent = currentTheme() === "dark" ? "☀️ Light mode" : "🌙 Dark mode";
+  }
+
+  // The inline <head> script already set the correct theme before first
+  // paint (avoiding a flash of the wrong one) -- just sync the button label.
+  reflectButton();
+
+  toggleBtn.addEventListener("click", () => {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+    reflectButton();
+  });
+
+  // If the user has never manually toggled, keep tracking the OS preference
+  // live (e.g. the system switches to dark mode at sunset while this tab
+  // is still open).
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  media.addEventListener("change", (event) => {
+    if (localStorage.getItem("theme")) return; // explicit user choice wins
+    document.documentElement.setAttribute("data-theme", event.matches ? "dark" : "light");
+    reflectButton();
+  });
+}
+
 const preloadedArtworkImages = []; // kept alive on purpose -- see preloadLoadingArtwork
 
 preloadLoadingArtwork();

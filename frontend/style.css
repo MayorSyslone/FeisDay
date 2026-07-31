@@ -15,6 +15,82 @@
   --lunch-bg: #f3ecd8;
   --orange-bg: #ffb347;
   --orange-fg: #6b3d00;
+  --surface: #ffffff;
+  --modal-overlay: rgba(0, 0, 0, 0.35);
+  --loading-overlay-bg: rgba(238, 245, 239, 0.9);
+}
+
+/* Auto-detects the OS/browser dark mode preference. This alone is enough
+ * for dark mode to work with zero JavaScript. app.js additionally sets an
+ * explicit data-theme attribute (see the two blocks below, which win via
+ * higher selector specificity) so a manual toggle can override this, and
+ * so the app reacts live if the OS preference changes mid-session. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --green-bg: #141b17;
+    --green-card: #1b2621;
+    --green-accent: #4f9468;
+    --green-accent-dark: #3a7350;
+    --green-accent-light: #23342a;
+    --green-border: #35473c;
+    --green-group-bg: #1e2c24;
+    --text-dark: #e7f1ea;
+    --text-muted: #93a89b;
+    --conflict-bg: #4a2126;
+    --conflict-fg: #f3a7ae;
+    --selection-bg: #5c4d16;
+    --hold-bg: #262f29;
+    --lunch-bg: #3a331f;
+    --orange-bg: #7a4b16;
+    --orange-fg: #ffd7a3;
+    --surface: #1f2b24;
+    --modal-overlay: rgba(0, 0, 0, 0.6);
+    --loading-overlay-bg: rgba(20, 27, 23, 0.9);
+  }
+}
+
+html[data-theme="light"] {
+  --green-bg: #eef5ef;
+  --green-card: #f7fbf7;
+  --green-accent: #4c8c5c;
+  --green-accent-dark: #356b43;
+  --green-accent-light: #dcefe0;
+  --green-border: #a9d3b3;
+  --green-group-bg: #e4f2e6;
+  --text-dark: #243b2b;
+  --text-muted: #5c7466;
+  --conflict-bg: #f8d7da;
+  --conflict-fg: #842029;
+  --selection-bg: #fff3b0;
+  --hold-bg: #eef0ea;
+  --lunch-bg: #f3ecd8;
+  --orange-bg: #ffb347;
+  --orange-fg: #6b3d00;
+  --surface: #ffffff;
+  --modal-overlay: rgba(0, 0, 0, 0.35);
+  --loading-overlay-bg: rgba(238, 245, 239, 0.9);
+}
+
+html[data-theme="dark"] {
+  --green-bg: #141b17;
+  --green-card: #1b2621;
+  --green-accent: #4f9468;
+  --green-accent-dark: #3a7350;
+  --green-accent-light: #23342a;
+  --green-border: #35473c;
+  --green-group-bg: #1e2c24;
+  --text-dark: #e7f1ea;
+  --text-muted: #93a89b;
+  --conflict-bg: #4a2126;
+  --conflict-fg: #f3a7ae;
+  --selection-bg: #5c4d16;
+  --hold-bg: #262f29;
+  --lunch-bg: #3a331f;
+  --orange-bg: #7a4b16;
+  --orange-fg: #ffd7a3;
+  --surface: #1f2b24;
+  --modal-overlay: rgba(0, 0, 0, 0.6);
+  --loading-overlay-bg: rgba(20, 27, 23, 0.9);
 }
 
 * { box-sizing: border-box; }
@@ -38,6 +114,7 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   gap: 1rem;
 }
 .app-header h1 { margin: 0; }
+.header-actions { display: flex; gap: 0.5rem; }
 
 .muted { color: var(--text-muted); font-size: 0.9rem; }
 
@@ -93,7 +170,8 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   padding: 0.35rem;
   border: 1px solid var(--green-border);
   border-radius: 4px;
-  background: white;
+  background: var(--surface);
+  color: var(--text-dark);
 }
 
 /* -------------------------------------------------- stage settings board */
@@ -134,20 +212,22 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   padding: 0.15rem 0.4rem;
   border: 1px solid var(--green-border);
   border-radius: 4px;
-  background: white;
+  background: var(--surface);
+  color: var(--text-dark);
   cursor: pointer;
 }
 
 .sb-btn {
   border: 1px solid var(--green-border);
   border-radius: 4px;
-  background: white;
+  background: var(--surface);
+  color: var(--text-dark);
   padding: 0.3rem 0.5rem;
   font-size: 0.8rem;
   cursor: pointer;
 }
 .sb-btn-accent { background: var(--green-accent); color: white; border-color: var(--green-accent); }
-.sb-btn-danger { color: #842029; }
+.sb-btn-danger { color: var(--conflict-fg); }
 
 .sb-time-label {
   display: flex;
@@ -183,14 +263,15 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .sb-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 .sb-modal {
-  background: white;
+  background: var(--surface);
+  color: var(--text-dark);
   border-radius: 8px;
   padding: 1.25rem;
   max-width: 480px;
@@ -268,7 +349,8 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 }
 
 .sg-cell {
-  background: white;
+  background: var(--surface);
+  color: var(--text-dark);
   border: 1px solid var(--green-border);
   min-width: 110px;
   min-height: 46px;
@@ -321,15 +403,10 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
   cursor: grab;
 }
 .dl-handle { color: var(--text-muted); font-size: 0.9rem; }
-.dl-edge-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--green-accent-dark);
-  display: none;
-  z-index: 5;
-  pointer-events: none;
+.dl-row-dragging {
+  background: var(--green-accent-light);
+  border-color: var(--green-accent);
+  opacity: 0.6;
 }
 .dl-ghost {
   position: fixed;
@@ -379,7 +456,8 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .printout-tab {
   border: 1px solid var(--green-border);
   border-radius: 6px;
-  background: white;
+  background: var(--surface);
+  color: var(--text-dark);
   padding: 0.4rem 0.8rem;
   cursor: pointer;
   font-size: 0.85rem;
@@ -450,7 +528,7 @@ h2 { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(238, 245, 239, 0.9);
+  background: var(--loading-overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;

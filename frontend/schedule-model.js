@@ -119,10 +119,12 @@ class ScheduleModel {
   }
 
   /** True if a same-shaped block starting at (targetColStart, targetRowStart)
-   * — offsets within the region — consists entirely of HOLD/blank cells,
-   * i.e. safe to swap the selection into. Covers horizontal moves (e.g.
-   * dropping into an adjacent stage's HOLD in the same row), vertical
-   * moves, or both at once. */
+   * — offsets within the region — is a valid drop target: every cell in it
+   * must be HOLD/blank, EXCEPT cells that are part of the selection's own
+   * original position, which are being vacated by this very move and so
+   * always count as available (this is what lets you drag a selection to
+   * overlap its own old spot, e.g. shifting it over by one column). Covers
+   * horizontal moves, vertical moves, or both at once. */
   canSwapIntoHold(selection, targetColStart, targetRowStart) {
     const region = this.regions[selection.regionIndex];
     const width = selection.colEnd - selection.colStart + 1;
@@ -131,18 +133,28 @@ class ScheduleModel {
     if (targetRowStart < 0 || targetRowStart + height > region.rows.length) return false;
     if (targetColStart === selection.colStart && targetRowStart === selection.rowStart) return false;
 
-    const targetCols = region.columns.slice(targetColStart, targetColStart + width);
-    for (let r = 0; r < height; r++) {
-      const row = region.rows[targetRowStart + r];
-      for (const c of targetCols) {
-        if (!cellIsEmptyOrHold(row[c])) return false;
+    for (let ro = 0; ro < height; ro++) {
+      const targetRowIndex = targetRowStart + ro;
+      const isSourceRow = targetRowIndex >= selection.rowStart && targetRowIndex <= selection.rowEnd;
+      const row = region.rows[targetRowIndex];
+      for (let co = 0; co < width; co++) {
+        const targetColOffset = targetColStart + co;
+        const isSourceCell = isSourceRow && targetColOffset >= selection.colStart && targetColOffset <= selection.colEnd;
+        if (isSourceCell) continue; // vacated by this move -- always a valid target
+        const stageIndex = region.columns[targetColOffset];
+        if (!cellIsEmptyOrHold(row[stageIndex])) return false;
       }
     }
     return true;
   }
 
   /** Swap a selection's block with a same-shaped HOLD block elsewhere in
-   * the same region (any combination of column/row offset). */
+   * the same region (any combination of column/row offset, including one
+   * that overlaps the selection's own original position). Computed as a
+   * batch of writes derived entirely from a pre-mutation snapshot, so
+   * overlapping ranges resolve correctly regardless of write order —
+   * "source becomes HOLD" is applied first, then "target gets the moved
+   * content" is applied second and wins wherever the two overlap. */
   swapIntoHold(selection, targetColStart, targetRowStart) {
     const region = this.regions[selection.regionIndex];
     const srcCols = this.selectionColumns(selection);
@@ -151,18 +163,24 @@ class ScheduleModel {
     const targetCols = region.columns.slice(targetColStart, targetColStart + width);
     const { block } = this._extractBlock(selection);
 
+    const finalByKey = new Map();
+
     for (let r = 0; r < height; r++) {
-      const srcRow = region.rows[selection.rowStart + r];
-      const dstRow = region.rows[targetRowStart + r];
-      for (let ci = 0; ci < width; ci++) {
-        const moving = block[r][srcCols[ci]];
-        dstRow[targetCols[ci]] = moving;
-        // Only clear the source cell to HOLD if the destination isn't also
-        // the source (guards the case where a move overlaps itself on one axis).
-        if (srcRow !== dstRow || srcCols[ci] !== targetCols[ci]) {
-          srcRow[srcCols[ci]] = makeHoldCell();
-        }
+      const rowIndex = selection.rowStart + r;
+      for (const stageIndex of srcCols) {
+        finalByKey.set(`${rowIndex}:${stageIndex}`, makeHoldCell());
       }
+    }
+    for (let r = 0; r < height; r++) {
+      const rowIndex = targetRowStart + r;
+      for (let ci = 0; ci < width; ci++) {
+        finalByKey.set(`${rowIndex}:${targetCols[ci]}`, block[r][srcCols[ci]]);
+      }
+    }
+
+    for (const [key, cell] of finalByKey) {
+      const [rowIndex, stageIndex] = key.split(":").map(Number);
+      region.rows[rowIndex][stageIndex] = cell;
     }
   }
 
