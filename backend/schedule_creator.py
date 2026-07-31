@@ -607,16 +607,31 @@ for group in effective_parallel_groups:
     def pick_best_slot_dance_type(group, group_positions, stage_assigned_comps, consumed_comp_ids, lookahead=5):
         """
         Look ahead at the next N comps in each stage and pick the dance type
-        that minimizes HOLDs (maximizes fills).
+        that minimizes HOLDs (maximizes fills). If any stage's front-of-queue
+        comp has been stalling (repeatedly passed over because its dance
+        type rarely has the most stages ready) past STALL_THRESHOLD slots,
+        force its dance type instead -- otherwise a comp of a less common
+        dance type can get starved indefinitely, even one with a HIGHER
+        sort priority than everything repeatedly chosen ahead of it.
         Returns (dance_type, anchor_comp, anchor_stage).
         """
+        STALL_THRESHOLD = 4
         type_fill_counts = {}
-        
+        stall_stage = None
+        stall_comp = None
+        max_stall = -1
+
         for stage_index in group:
             advance_group_position(stage_index)
             if group_positions[stage_index] >= len(stage_assigned_comps[stage_index]):
                 continue
-            
+
+            front_comp = stage_assigned_comps[stage_index][group_positions[stage_index]]
+            if stall_counter.get(stage_index, 0) > max_stall:
+                max_stall = stall_counter.get(stage_index, 0)
+                stall_stage = stage_index
+                stall_comp = front_comp
+
             # Look ahead at next lookahead comps in this stage
             for offset in range(lookahead):
                 pos = group_positions[stage_index] + offset
@@ -635,12 +650,29 @@ for group in effective_parallel_groups:
         # Pick dance type with most stages ready (minimizes HOLDs)
         if not type_fill_counts:
             return None, None, None
-        
+
+        if max_stall >= STALL_THRESHOLD and stall_comp is not None:
+            return stall_comp["dance_type"], stall_comp, stall_stage
+
         best_type = max(type_fill_counts.keys(), key=lambda t: len(set(s for s, _, _, _ in type_fill_counts[t])))
         entries = type_fill_counts[best_type]
         anchor_stage, anchor_comp, _, _ = min(entries, key=lambda e: e[1]["order"])
         
         return best_type, anchor_comp, anchor_stage
+
+    stall_counter = {stage_index: 0 for stage_index in group}
+
+    def update_stall_counters(front_before):
+        for stage_index, comp_id in front_before.items():
+            advance_group_position(stage_index)
+            still_pending = (
+                group_positions[stage_index] < len(stage_assigned_comps[stage_index])
+                and stage_assigned_comps[stage_index][group_positions[stage_index]]["comp_id"] == comp_id
+            )
+            if comp_id in consumed_comp_ids or not still_pending:
+                stall_counter[stage_index] = 0
+            else:
+                stall_counter[stage_index] = stall_counter.get(stage_index, 0) + 1
 
     while any(has_remaining(stage_index) for stage_index in group):
         available_next = []
@@ -650,6 +682,11 @@ for group in effective_parallel_groups:
                 available_next.append((stage_assigned_comps[stage_index][position], stage_index))
         if not available_next:
             break
+
+        front_before = {}
+        for stage_index in group:
+            if has_remaining(stage_index):
+                front_before[stage_index] = stage_assigned_comps[stage_index][group_positions[stage_index]]["comp_id"]
 
         slot_dance_type, anchor_comp, anchor_stage = pick_best_slot_dance_type(group, group_positions, stage_assigned_comps, consumed_comp_ids)
         if slot_dance_type is None:
@@ -697,6 +734,7 @@ for group in effective_parallel_groups:
                         )
                         stage_current_times[stage_index] += slot_duration
                         maybe_insert_lunch(stage_index)
+                update_stall_counters(front_before)
                 continue
         else:
             anchor_level_priority = level_sort_order.get(anchor_comp["level_name"], len(level_sort_order))
@@ -730,6 +768,7 @@ for group in effective_parallel_groups:
             stage_current_times[stage_index] += slot_duration
             
             maybe_insert_lunch(stage_index)
+        update_stall_counters(front_before)
 
 stage_schedule = stage_current_times - stage_start_seconds
 
